@@ -3,6 +3,7 @@ from typing import TypedDict
 from dotenv import load_dotenv
 from langchain.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
+from pydantic import BaseModel, Field
 
 load_dotenv()
 
@@ -12,6 +13,11 @@ class State(TypedDict):
     joke: str
     funny_or_not: bool
     reason: str
+
+
+class Review(BaseModel):
+    funny_or_not: bool = Field(description="Whether the joke is funny or not")
+    reason: str = Field(description="The reason why the joke is funny or not")
 
 
 # Agent 1 : the joker
@@ -38,15 +44,15 @@ def reviewer_agent(state: State):
          - This is the context of the joke : {context} and this is the given joke : {joke}
          - Be strict and hard to laugh at the joker's joke.
          - if the joke is funny return True otherwise return False.
+         - Provide a reason for your answer and why you think the joke is funny or not.
      
          
     """
     )
-    model = ChatOpenAI(model="gpt-4o-mini")
+    model = ChatOpenAI(model="gpt-4o-mini").with_structured_output(Review)
     chain = prompt | model
     response = chain.invoke({"context": state["context"], "joke": state["joke"]})
-    print(response.content)
-    return {"funny_or_not": response.content}
+    return {"funny_or_not": response.funny_or_not, "reason": response.reason}
 
 
 def build_graph():
