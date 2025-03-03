@@ -1,5 +1,5 @@
 from langgraph.graph import StateGraph, END
-from typing import TypedDict
+from typing import TypedDict, Optional
 from dotenv import load_dotenv
 from langchain.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
@@ -13,6 +13,7 @@ class State(TypedDict):
     joke: str
     funny_or_not: bool
     reason: str
+    reviews_num: Optional[int] = 0
 
 
 class Review(BaseModel):
@@ -32,8 +33,7 @@ def joker_agent(state: State):
     model = ChatOpenAI(model="gpt-4o-mini")
     chain = prompt | model
     response = chain.invoke({"context": state["context"]})
-    print(response.content)
-    return {"joke": response.content}
+    return {"joke": response.content, "reviews_num": state["reviews_num"] + 1}
 
 
 # Agent 2 : the reviewer
@@ -42,7 +42,7 @@ def reviewer_agent(state: State):
         """
          - You are a reviewer. You are in a room with a joker. You are trying to not laugh at the joker's joke.
          - This is the context of the joke : {context} and this is the given joke : {joke}
-         - Be strict and hard to laugh at the joker's joke.
+         - You have 20% chance of laughing at the joke and 80% chance of not laughing at the joke.
          - if the joke is funny return True otherwise return False.
          - Provide a reason for your answer and why you think the joke is funny or not.
      
@@ -61,11 +61,17 @@ def build_graph():
     graph.set_entry_point("joker_agent")
     graph.add_node("reviewer_agent", reviewer_agent)
     graph.add_edge("joker_agent", "reviewer_agent")
-    graph.add_edge("reviewer_agent", END)
+    graph.add_conditional_edges("reviewer_agent", should_continue)
     return graph.compile()
+
+
+def should_continue(state: State):
+    if state["funny_or_not"]:
+        return END
+    return "joker_agent"
 
 
 if __name__ == "__main__":
     agent = build_graph()
-    reponse = agent.invoke({"context": "movies"})
+    reponse = agent.invoke({"context": "movies", "reviews_num": 0})
     print(reponse)
