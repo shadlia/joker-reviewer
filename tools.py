@@ -5,15 +5,9 @@ from langchain.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 import datetime
+from langchain_community.tools import DuckDuckGoSearchRun
 
 load_dotenv()
-
-
-def get_timestamp():
-    """
-    Returns current timestamp in ISO 8601 format.
-    """
-    return datetime.datetime.now().isoformat()
 
 
 def execute_toolcall(response):
@@ -24,11 +18,20 @@ def execute_toolcall(response):
         return eval(f"""{selected_tool["name"]}(**{tool_args})""")
 
 
+def get_timestamp():
+    """
+    Returns current timestamp in ISO 8601 format.
+    """
+    return datetime.datetime.now().isoformat()
+
+
 def search_web_tool(query):
     """
     browse the web for the answer to the user's question.
     """
-    return "liverpool against psg"
+    search = DuckDuckGoSearchRun()
+    response = search.invoke(query)
+    return response
 
 
 # duckduckgo library for seaching the web : install the right package
@@ -40,6 +43,5 @@ answer the user question: {question}
 """
 )
 chain = prompt | model
-response = chain.invoke({"question": "who won between liverpool and psg ?"})
-print(response)
+response = chain.invoke({"question": "who is the best singer in the world ?"})
 print(execute_toolcall(response))
